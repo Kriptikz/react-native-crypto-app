@@ -17,8 +17,10 @@ import bs58 from 'bs58';
 import {
   confirmTransaction,
   getConnection,
+  getSolBalance,
   Networks,
   requestAirdrop,
+  sendSol,
 } from './src/solanaUtils';
 
 type DataStored = {
@@ -125,16 +127,15 @@ async function loadSecretKey(): Promise<string> {
   }
 }
 
-async function getBalance(
+async function handleGetSolBalance(
   connection: web3.Connection,
   publicKey: web3.PublicKey,
   setBalance: Function,
 ) {
-  const balance = await connection.getBalance(publicKey);
-  setBalance(balance / web3.LAMPORTS_PER_SOL);
+  setBalance(await getSolBalance(connection, publicKey));
 }
 
-async function sendSol(
+async function handleSendSol(
   connection: web3.Connection,
   fromKeypair: web3.Keypair,
   toPublicKey: web3.PublicKey,
@@ -144,24 +145,18 @@ async function sendSol(
   console.log('Send amount: ', amount);
 
   if (!isNaN(amount)) {
-    // Create transaction
-    const transaction = new web3.Transaction();
-
-    transaction.add(
-      web3.SystemProgram.transfer({
-        fromPubkey: fromKeypair.publicKey,
-        toPubkey: toPublicKey,
-        lamports: amount * web3.LAMPORTS_PER_SOL,
-      }),
-    );
-
     setToggleSpinnerVisibility(true);
 
     // send the transaction
-    const result = await connection.sendTransaction(transaction, [fromKeypair]);
-    console.log('Result: ', result);
+    const signature = await sendSol(
+      connection,
+      fromKeypair,
+      toPublicKey,
+      amount,
+    );
 
-    const confirmed = await connection.confirmTransaction(result);
+    const confirmed = confirmTransaction(connection, signature);
+
     console.log('Confirmed: ', confirmed);
     setToggleSpinnerVisibility(false);
   }
@@ -310,7 +305,7 @@ const App = () => {
         <Text style={styles.walletBalanceText}>{walletBalance} SOL</Text>
         <Button
           onPress={async () =>
-            await getBalance(connection, publicKey, setWalletBalance)
+            await handleGetSolBalance(connection, publicKey, setWalletBalance)
           }
           title="Refresh Balance"
         />
@@ -325,7 +320,7 @@ const App = () => {
         <View style={styles.separator} />
         <Button
           onPress={async () =>
-            await sendSol(
+            await handleSendSol(
               connection,
               keypair,
               new web3.PublicKey(
