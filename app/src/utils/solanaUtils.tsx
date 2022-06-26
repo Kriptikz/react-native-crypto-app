@@ -1,4 +1,5 @@
 import * as web3 from '@solana/web3.js';
+import bs58 from 'bs58';
 
 export enum Networks {
   DEV_SOLANA = 'https://api.devnet.solana.com',
@@ -7,6 +8,10 @@ export enum Networks {
 
 export function getConnection(network: Networks): web3.Connection {
   return new web3.Connection(network, 'confirmed');
+}
+
+export function getKeypairFromSecretKeyString(secretKey: string): web3.Keypair {
+  return web3.Keypair.fromSecretKey(bs58.decode(secretKey));
 }
 
 export async function sendSol(
