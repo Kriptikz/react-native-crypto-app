@@ -11,82 +11,19 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as web3 from '@solana/web3.js';
-import {
-  confirmTransaction,
-  getConnection,
-  getSolBalance,
-  Networks,
-  requestAirdrop,
-  sendSol,
-} from './src/utils/solanaUtils';
+import {getConnection, Networks} from './src/utils/solanaUtils';
 import {loadString, saveString} from './src/utils/encryptedStorage';
 import {Separator} from './src/components/Separator';
 import {MenuModal} from './src/components/MenuModal';
-
-async function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function handleGetSolBalance(
-  connection: web3.Connection,
-  publicKey: web3.PublicKey,
-  setBalance: Function,
-) {
-  setBalance(await getSolBalance(connection, publicKey));
-}
-
-async function handleSendSol(
-  connection: web3.Connection,
-  fromKeypair: web3.Keypair,
-  toPublicKey: web3.PublicKey,
-  amount: number,
-  setToggleSpinnerVisibility: Function,
-) {
-  console.log('Send amount: ', amount);
-
-  if (!isNaN(amount)) {
-    setToggleSpinnerVisibility(true);
-
-    // send the transaction
-    const signature = await sendSol(
-      connection,
-      fromKeypair,
-      toPublicKey,
-      amount,
-    );
-
-    const confirmed = confirmTransaction(connection, signature);
-
-    console.log('Confirmed: ', confirmed);
-    setToggleSpinnerVisibility(false);
-  }
-}
-
-async function handleRequestAirdrop(
-  connection: web3.Connection,
-  toPublicKey: web3.PublicKey,
-  setVisibility: Function,
-  setAirdropButtonDisabled: Function,
-) {
-  setVisibility(true);
-  setAirdropButtonDisabled(true);
-
-  const sig = await requestAirdrop(toPublicKey);
-
-  await confirmTransaction(connection, sig);
-
-  setVisibility(false);
-
-  await sleep(10_000);
-  setAirdropButtonDisabled(false);
-}
+import {RequestAirdropButton} from './src/components/RequestAirdropButton';
+import {RefreshBalanceButton} from './src/components/RefreshBalanceButton';
+import {SendSolButton} from './src/components/SendSolButton';
 
 const App = () => {
   const [walletBalance, setWalletBalance] = useState(0.0);
   const [sendAmountText, onChangeSendAmountText] = useState('Amount');
   const [sendSolIndicator, setSendSolIndicator] = useState(false);
   const [requestAirdropIndicator, setRequestAirdropIndicator] = useState(false);
-  const [airdropButtonDisabled, setAirdropButtonDisabled] = useState(false);
   const [cachedStorageValue, setCachedStorageValue] = useState('');
   const [storageValueText, setStorageValueText] = useState('');
   const [menuModalIsVisible, setMenuModalIsVisible] = useState(false);
@@ -124,11 +61,10 @@ const App = () => {
       </View>
       <View style={styles.walletBalanceContainer}>
         <Text style={styles.walletBalanceText}>{walletBalance} SOL</Text>
-        <Button
-          onPress={async () =>
-            await handleGetSolBalance(connection, publicKey, setWalletBalance)
-          }
-          title="Refresh Balance"
+        <RefreshBalanceButton
+          connection={connection}
+          publicKey={publicKey}
+          setWalletBalance={setWalletBalance}
         />
       </View>
       <Separator />
@@ -139,34 +75,22 @@ const App = () => {
           value={sendAmountText}
         />
         <Separator />
-        <Button
-          onPress={async () =>
-            await handleSendSol(
-              connection,
-              keypair,
-              new web3.PublicKey(
-                'ALYRTCp2ZTczgUnaWm7zYN4XFgM5cKLMJrUm7E8WH9SN',
-              ),
-              Number(sendAmountText),
-              setSendSolIndicator,
-            )
+        <SendSolButton
+          connection={connection}
+          fromKeypair={keypair}
+          toPublicKey={
+            new web3.PublicKey('ALYRTCp2ZTczgUnaWm7zYN4XFgM5cKLMJrUm7E8WH9SN')
           }
-          title="Send"
+          amount={Number(sendAmountText)}
+          setSpinnerVisibility={setSendSolIndicator}
         />
         <ActivityIndicator animating={sendSolIndicator} />
       </View>
       <View style={styles.sendButtonContainer}>
-        <Button
-          onPress={async () =>
-            await handleRequestAirdrop(
-              connection,
-              publicKey,
-              setRequestAirdropIndicator,
-              setAirdropButtonDisabled,
-            )
-          }
-          title="Request Airdrop"
-          disabled={airdropButtonDisabled}
+        <RequestAirdropButton
+          connection={connection}
+          publicKey={publicKey}
+          setVisibility={setRequestAirdropIndicator}
         />
         <ActivityIndicator animating={requestAirdropIndicator} />
       </View>
@@ -198,10 +122,6 @@ const styles = StyleSheet.create({
   menuButton: {
     alignSelf: 'flex-start',
   },
-  sendButton: {
-    alignSelf: 'center',
-    width: 100,
-  },
   sendButtonContainer: {
     alignSelf: 'center',
   },
@@ -231,18 +151,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     height: 50,
-  },
-  menuView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginTop: 22,
-  },
-  centerModalView: {
-    flex: 1,
-    paddingLeft: 50,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
   },
 });
 

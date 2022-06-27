@@ -61,6 +61,6 @@ export async function confirmTransaction(
 export async function getSolBalance(
   connection: web3.Connection,
   publicKey: web3.PublicKey,
-) {
+): Promise<number> {
   return (await connection.getBalance(publicKey)) / web3.LAMPORTS_PER_SOL;
 }
